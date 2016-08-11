@@ -1,4 +1,4 @@
-use gdb -->> we have:
+use gdb -->> we have code:
 
 (gdb) disass main
 Dump of assembler code for function main:
