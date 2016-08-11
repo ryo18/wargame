@@ -1,0 +1,32 @@
+ we have code in level 2: 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+void catcher(int a)
+{
+    setresuid(geteuid(),geteuid(),geteuid());
+	printf("WIN!\n");
+    system("/bin/sh");
+    exit(0);
+}
+
+int main(int argc, char **argv)
+{
+	puts("source code is available in level02.c\n");
+
+        if (argc != 3 || !atoi(argv[2]))   // has 2 arguments
+                return 1;
+        signal(SIGFPE, catcher);		   // exploit here 
+        return abs(atoi(argv[1])) / atoi(argv[2]);
+}
+
+Function atoi(): only return values in [-2147483648, 2147483647] (integer, 2^31)
+Signal SIGFPE (http://www.gnu.org/software/libc/manual/html_node/Program-Error-Signals.html): reports a fatal arithmetic error, this signal actually covers all arithmetic errors, including division by zero and overflow.
+
+Because !atoi(argv[2]) # 0, therefore we have to cause an overflow
+Choose argv[1] = -9999999999999999999 argv[2] = -1
+
+-->> pass: OlhCmdZKbuzqngfz
